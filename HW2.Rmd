@@ -1,0 +1,268 @@
+---
+title: "K-Nearest Neighbors & K-Means Clustering"
+author: "Michaella "
+date: " "
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+
+Using the same data set (credit_card_data.txt or credit_card_data-headers.txt) as in Question 2.2, use the ksvm or kknn function to find a good classifier:
+using cross-validation (do this for the k-nearest-neighbors model; SVM is optional); and
+splitting the data into training, validation, and test data sets (pick either KNN or SVM; the other is optional).
+
+```{r}
+rm(list = ls())
+set.seed(123)
+library(kknn)
+library(caret)
+
+# ---------------------------- Split Data -------------------------------------
+
+data <- read.table("/Users/michaella/Downloads/hw2-FA23/credit_card_data-headers.txt", stringsAsFactors = FALSE, header = TRUE)
+
+head(data)
+
+# Sample Data: random sampling, partition into 60%. Returns positions
+data_pt1 <- createDataPartition (y= data$R1, p=.60, list=F)
+str(data_pt1)
+
+# Training Data : reference positions 
+train_data <- data[data_pt1,]
+dim(train_data)
+
+# Split remaining 40$ into validate and test 
+remaining <- data[-data_pt1,]
+data_pt2 <- createDataPartition(y=remaining$R1, p=0.40, list=F)
+
+#Validation data set
+validation_set <- remaining[data_pt2,]
+dim(validation_set)
+
+# Test set
+test_set <- remaining[-data_pt2, ]
+dim(test_set)
+
+# Model
+knn_prediction <- c() 
+k_list <- c(seq(from=1 ,to=50))
+
+for (k in k_list){
+  knn_model <- kknn(R1~. , 
+                    train_data, 
+                    validation_set,  
+                    k= k,
+                    kernel = "rectangular",
+                    distance = 2, 
+                    scale = TRUE)
+  knn_predict <- as.integer(fitted(knn_model)+0.5)
+  knn_prediction[k] <- sum(knn_predict == validation_set$R1)/nrow(validation_set)
+}
+
+#Output
+knn_results <- do.call(rbind, Map(data.frame, K= k_list, knn_prediction = knn_prediction))
+
+knn_results
+# Max k
+max_index <- which.max(knn_results$knn_prediction)
+max_k <- knn_results$K[max_index]
+
+max_pred <- knn_results$knn_prediction[max_index]
+cat(max_k, max_pred)
+
+# Estimate Model Quality : Accuracy
+knn_model_test <- kknn(R1~. , 
+                       train_data, 
+                       test_set, 
+                       k = max_k, 
+                       kernel = "rectangular", 
+                       distance = 2,
+                       scale = TRUE)
+knn_model_predict <- round(fitted(knn_model_test))
+
+
+knn_predict_test <- sum(knn_model_predict == test_set$R1) / nrow(test_set)
+knn_predict_test
+
+
+cat("Mean Accuracy after ", max_k ,"fold cross-validation: ", knn_predict_test, "\n")
+```
+K=29 achieved an accuracy of 83.97%. 
+
+Now, on to cross-validation: 
+
+The standard value of k in k-fold cross validation is 10, so we will do the same.
+
+```{r}
+k <- 10
+folds <- createFolds(data$R1, k = k)
+performance_metrics <- numeric(k)
+
+for (i in 1:k) {
+  
+  #Split data into train and test based on folds
+  train_index <- unlist(folds[-i])
+  test_index <- unlist(folds[i])
+  
+  cv_train_data <- data[train_index, ]
+  cv_test_data <- data[test_index, ]
+  
+  #Train model using our k=29 value
+  cv_knn_model <- kknn(R1~., 
+                       cv_train_data,
+                       cv_test_data,
+                       k=max_k, 
+                       kernel = "rectangular",
+                       distance = 2,
+                       scale = TRUE)
+  
+  # Predict
+  cv_knn_predict <- round(fitted(cv_knn_model) )
+  
+  # Performance check
+  cv_accuracy <- sum(cv_knn_predict == cv_test_data$R1) /nrow(cv_test_data)
+  performance_metrics[i] <- cv_accuracy
+}
+
+mean_performance <- mean(performance_metrics)
+cat("Mean Accuracy after k=10 fold cross-validation: ", mean_performance, "\n")
+
+```
+
+Question 4.1 
+
+Describe a situation or problem from your job, everyday life, current events, etc., for which a clustering model would be appropriate. List some (up to 5) predictors that you might use.
+
+- As a laboratory technician, I have to organize chemical reagents into specialized storage locations depending on their properties so no accidents, spills, leaks, or explosions happen. They can be placed in the flammable cabinet,  -80C freezer, acid cabinet, or the oxidizer cabinet for example. A clustering model that takes in information from the chemical's safety datasheet to cluster them into their types based on the following predictors would save me a lot of work. These are six, but there are more that define their storage.
+* Flammability  - Knowing the flammability of chemicals is needed to prevent fires and explosions. Flammable chemicals should be stored away from open flames, heat sources, and oxidizers.
+* Storage temperature -  Different chemicals have specific temperature requirements to maintain stability and prevent degradation. Storing chemicals at the correct temperature ensures that they retain their intended properties and do not become hazardous or less effective due to temperature extremes.
+* Physical state (e.g. solid, liquid, gas) - Gases may require specialized gas cabinets, while liquids and solids may need different types of containers. Proper storage based on physical state prevents leaks, spills, and accidents.
+* Disposal method - Improper disposal can lead to environmental contamination and legal violations. Labs should have clear guidelines for waste segregation, labeling, and disposal methods for different chemical types.
+* Personal Protective Equipment recommendations - PPE recommendations indicate what protective gear (e.g., gloves, goggles, lab coats) should be worn when handling specific chemicals. Proper storage of PPE near chemical storage areas ensures that personnel have easy access to the necessary protective gear, reducing the risk of exposure to hazardous substances.
+* pH - Chemicals with extreme pH values can corrode containers or react with other substances. Proper storage of chemicals with known pH values helps prevent container damage and unintended chemical reactions.
+
+
+Question 4.2 
+
+The iris data set iris.txt contains 150 data points, each with four predictor variables and one categorical response. The predictors are the width and length of the sepal and petal of flowers and the response is the type of flower. The data is available from the R library datasets and can be accessed with iris once the library is loaded. It is also available at the UCI Machine Learning Repository (https://archive.ics.uci.edu/ml/datasets/Iris ). The response values are only given to see how well a specific method performed and should not be used to build the model.
+
+Use the R function kmeans to cluster the points as well as possible. Report the best combination of predictors, your suggested value of k, and how well your best clustering predicts flower type.
+
+```{r}
+library(ggplot2)
+library(GGally)
+library(ggfortify)
+
+iris_data <- read.table("/Users/michaella/Downloads/hw2-FA23/iris.txt", stringsAsFactors = FALSE, header = TRUE)
+ 
+head(iris_data)
+
+ggplot(iris_data, aes(Sepal.Length, Sepal.Width, color=Species)) + geom_point()
+
+ggpairs(iris_data,
+        ggplot2:: aes(colour=Species))
+
+#kmeans() on UNSCALED data
+cluster_1 <- kmeans(iris_data[,1:4], centers=2, nstart =5)
+cluster_2 <- kmeans(iris_data[, 1:4], centers =3, nstart= 10)
+
+# Total within sum of squares to make elbow diagram
+cluster_1$tot.withinss
+cluster_2$tot.withinss
+
+# Table to compare clusters to True Labels
+table(cluster_1$cluster, iris_data$Species)
+table(cluster_2$cluster, iris_data$Species)
+
+
+#######################################
+#           UNSCALED                  #
+#######################################
+
+# Vector to store within-cluster sum of squares
+wss <- vector()
+
+# Make a suggested value for k
+iris_k <- 1:10
+
+#K-means Clustering
+for (k in iris_k) {
+  iris_kmeans <- kmeans(iris_data[, 1:4], centers= k)
+  wss[k] <- iris_kmeans$tot.withinss
+  
+}
+
+# Create elbow plot
+plot(
+  iris_k,
+  type="b",
+  wss, 
+  xlab = "# K-Clusters",
+  ylab = "Total WSS",
+  main = "Elbow-Plot"
+  
+)
+
+autoplot(cluster_2, iris_data, frame=TRUE)
+```
+Based on the Elbow-plot, k=3 is likely a good cluster value.
+
+Out of curiosity, I tried it with Scaled Data but with poor results. The scaled data particularly caused the model to struggle identifying between versicolor and virginica.
+
+``` {r}
+########################
+#  SCALED DATA              #
+#######################
+
+# Standardize the data
+scaled_iris_data <- as.data.frame(scale(iris_data[, 1:4]))
+                                 
+#kmeans() on SCALED data
+scaled_cluster_1 <- kmeans(scaled_iris_data[,1:4], centers=2, nstart =5)
+scaled_cluster_2 <- kmeans(scaled_iris_data[, 1:4], centers =3, nstart= 10)
+
+# Total within sum of squares to make elbow diagram
+scaled_cluster_1$tot.withinss
+scaled_cluster_2$tot.withinss
+
+```
+Our values are higher compared to the the unscaled data. 
+
+On the following, I have removed the first cluster (k = 2 ) because I have established that k=3 is a good cluster value.
+
+``` {r}
+# Table to compare scaled and unscaled
+table(scaled_cluster_2$cluster, iris_data$Species)
+table(cluster_2$cluster, iris_data$Species)
+
+# Vector to store within-cluster sum of squares
+scaled_wss <- vector()
+
+# Make a suggested value for k
+iris_k <- 1:10
+
+#K-means Clustering
+for (k in iris_k) {
+  scaled_iris_kmeans <- kmeans(scaled_iris_data[, 1:4], centers= k)
+  scaled_wss[k] <- scaled_iris_kmeans$tot.withinss
+  
+}
+autoplot(scaled_cluster_2, scaled_iris_data, frame=TRUE)
+
+# Create elbow plot
+plot(
+  iris_k,
+  type="b",
+  wss, 
+  xlab = "# K-Clusters",
+  ylab = "Total WSS",
+  main = "Elbow-Plot"
+  
+)
+```
+The elbow plot produced the same output, but the cluster plot (autoplot) clusters are different.
