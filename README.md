@@ -6,7 +6,7 @@ Here, you'll find a collection of R projects that showcase my coding skills.
 2. **K-Nearest Neighbours & Cross-Validation on Credit Card Data:** Using KNN to make a model that classifies credit card eligibility, and cross-validation to test model quality.
 
 ## About Me
-I'm a recovering plant research technician who fell in love with data analysis, and is now determined to pivot from the bench and greenhouse into data analytics.
+I'm a recovering plant research technician who fell in love with data analysis, and is now determined to pivot from the bench and greenhouse into data analytics. Now, I am currently pursuing a remote Masters in Analytics with Georgia Tech while looking for my next position in data.
 
 **Contact**
 **Email:** mysicella@gmail.com
