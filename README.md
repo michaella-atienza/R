@@ -1,5 +1,5 @@
 ## Welcome to my GitHub repository R portfolio!
-Here, you'll find a collection of R projects that showcase my coding skills.
+Here, you'll find a collection of R projects that showcase my coding skills in R, featuring models used in machine learning. 
 
 ## Projects
 1. **K-Means Clustering with Iris Data:** Visualization and using K-Means Clustering to cluster different Iris species, and subsequently an elbow plot to determine appropriate k value.
